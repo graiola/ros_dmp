@@ -1,0 +1,7 @@
+<library path="lib/libmeka_controller">
+  <class type="meka_controller::MekaController" base_class_type="dmp_controller::DmpController">
+  <description>
+  Hurraaaay Karsten.
+  </description>
+  </class>
+</library>
