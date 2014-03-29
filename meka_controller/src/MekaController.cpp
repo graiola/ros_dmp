@@ -14,7 +14,8 @@ namespace meka_controller{
 	
 	bool MekaController::init(double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller, bool closed_loop_dmp_controller)
 	{	
-		if(dmp_controller::DmpController::init(dt,dmp_shr_ptr,cartesian_dmp_controller,closed_loop_dmp_controller)){
+		if(dmp_controller::DmpController::init(dt,dmp_shr_ptr,cartesian_dmp_controller,closed_loop_dmp_controller))
+		{
 			monitor_ = new MekaShmMonitor(joints_size_);
 			return true;
 		}
@@ -61,7 +62,7 @@ namespace meka_controller{
 	}
 
 	void MekaController::updateLoop()
-	{	//dt_ = dt_ * DT_FACTOR;
+	{	dt_ = dt_ * DT_FACTOR;
 		INIT_CNT(tmp_dt_cnt);
 		INIT_CNT(tmp_loop_cnt);
 		if(rtTaskInit()){

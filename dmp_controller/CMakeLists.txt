@@ -8,10 +8,14 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS pluginlib)
+find_package(catkin REQUIRED COMPONENTS pluginlib kdl_kinematics)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system thread)
+
+# Orocos Kdl
+# Note:
+find_package(orocos_kdl REQUIRED)
 
 ## Dmp libs
 #SET(DMP_LIBS dmp dynamicalsystems functionapproximators)
@@ -28,7 +32,7 @@ find_package(Boost REQUIRED COMPONENTS system thread)
 ## To declare and build messages, services or actions from within this
 ## package, follow these steps:
 ## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
+##   your messages/services/actions (e.g.${orocos_kdl_INCLUDE_DIRS} std_msgs, actionlib_msgs, ...).
 ## * In the file package.xml:
 ##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
 ##   * If MSG_DEP_SET isn't empty the following dependencies might have been
@@ -84,8 +88,8 @@ find_package(Boost REQUIRED COMPONENTS system thread)
 catkin_package(
   INCLUDE_DIRS include
   #LIBRARIES dmp_controller
-  CATKIN_DEPENDS pluginlib
-  DEPENDS system_lib boost
+  CATKIN_DEPENDS pluginlib kdl_kinematics
+  DEPENDS system_lib boost orocos_kdl
 )
 
 ###########

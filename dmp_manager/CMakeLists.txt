@@ -89,7 +89,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES dmp_manager
   CATKIN_DEPENDS roscpp pluginlib dmp_controller
-  DEPENDS system_lib
+  DEPENDS system_lib boost
 )
 
 ###########

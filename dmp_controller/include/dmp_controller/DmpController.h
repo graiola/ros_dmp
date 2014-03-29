@@ -7,6 +7,9 @@
 #ifndef DMP_CONTROLLER_H
 #define DMP_CONTROLLER_H
 
+////////// KDL_KINEMATICS
+#include <kdl_kinematics/kdl_kinematics.h>
+
 ////////// BOOST
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/thread.hpp>
@@ -18,24 +21,29 @@
 #include <eigen3/Eigen/Core>
 
 ////////// Debug
-#define PRINT_DEBUG(string,in) do { if (DEBUG) std::cout<<string<<in<<std::endl; } while (0)
+#ifdef DEBUG
+#define DEBUG_LV 1
+#else
+#define DEBUG_LV 0
+#endif
+#define PRINT_DEBUG(string,in) do { if (DEBUG_LV) std::cout<<string<<in<<std::endl; } while (0)
 
 
 /** 
  * \brief This class provides a general interface for dmp controllers.
 */
 
-using namespace DmpBbo;
+//using namespace DmpBbo;
 
-typedef Dmp dmp_t;
+typedef DmpBbo::Dmp dmp_t;
+//typedef KDLKinematics kinematics_t;
 
-namespace dmp_controller{
+namespace dmp_controller {
 
 	class DmpController
 	{	
 		public:
 			/** Constructor. */
-			//DmpController(double dt,boost::shared_ptr<dmp_t> dmp_shr_ptr);
 			DmpController(){}; //Note: this needs to be an empty constructor for the ros plugin creation
 			
 			/** Destructor. */
@@ -47,6 +55,10 @@ namespace dmp_controller{
 				// Is it a cartesian dmp controller, closed loop?
 				cartesian_dmp_controller_ = cartesian_dmp_controller;
 				closed_loop_dmp_controller_ = closed_loop_dmp_controller;
+				
+				// Create the kinematics
+				if(cartesian_dmp_controller_)// FIX, hardcoded
+					//kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right");
 				
 				// Assign the sample time
 				assert(dt > 0.0);
@@ -66,6 +78,7 @@ namespace dmp_controller{
 				
 				if (cartesian_dmp_controller_){
 					// Retrain a kdl robot
+					
 					
 					//joints_size_ = 7;
 					//assert(joints_size_ == dmp_shr_ptr_->dim_orig());
@@ -131,6 +144,9 @@ namespace dmp_controller{
 			/** Shared pointer to a trained dmp. */
 			boost::shared_ptr<dmp_t> dmp_shr_ptr_;
 			
+			/** Kinematics. */
+			//boost::shared_ptr<kinematics_t> kinematics_;
+			
 			/** Thread. */
 			//boost::thread thread_;
 			
@@ -169,7 +185,14 @@ namespace dmp_controller{
 			}
 			
 			/** Integrate dmp in cartesian space. */
-			void CrtDmpIntegrate();
+			inline void CrtDmpIntegrate()
+			{
+				
+				
+				
+				
+				
+			}
 			
 			
 

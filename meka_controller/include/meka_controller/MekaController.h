@@ -24,11 +24,11 @@
 #include "meka_controller/MekaShmMonitor.h"
 
 // The task will be scheduled as hard real time
-//#define HARD_RT
+#define HARD_RT
 // Modify the dmp integration period (useful if the meka is working at a lower frequency)
-#define DT_FACTOR 1
+#define DT_FACTOR 1/10
 // Debug
-#define DEBUG 1
+//#define DEBUG
 
 
 /** 

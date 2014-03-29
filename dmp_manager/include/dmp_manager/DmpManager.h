@@ -8,9 +8,6 @@
 ////////// BOOST
 #include <boost/shared_ptr.hpp>
 
-////////// ROS_DMP
-#include <dmp_controller/DmpController.h>
-
 ////////// DMP
 #include <dmp/Dmp.hpp>
 #include <dmp/Trajectory.hpp>
@@ -23,13 +20,13 @@
 #include <functionapproximators/MetaParametersLWR.hpp>
 #include <functionapproximators/ModelParametersLWR.hpp>
 
+////////// ROS_DMP
+#include <dmp_controller/DmpController.h>
+
 ////////// STD
 #include <signal.h> 
 
 sig_atomic_t stop_node = 0;
 void shutdown(int dummy) { stop_node = 1; }
-
-using namespace DmpBbo;
-using namespace Eigen;
 
 #endif

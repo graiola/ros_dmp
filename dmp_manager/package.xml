@@ -46,6 +46,8 @@
   <run_depend>roscpp</run_depend>
   <build_depend>dmp_controller</build_depend>
   <run_depend>dmp_controller</run_depend>
+  <!-- <build_depend>kdl_kinematics</build_depend> -->
+  <!-- <run_depend>kdl_kinematics</run_depend> -->
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

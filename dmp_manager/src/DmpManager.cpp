@@ -12,6 +12,9 @@
 	
 };*/
 
+using namespace DmpBbo;
+using namespace Eigen;
+
 Trajectory generateViapointTrajectory(const VectorXd& ts, const VectorXd& y_first, const VectorXd& y_last, const double& Tf, const double& Ti)
 {
     //VectorXd y_first = VectorXd::Zero(n_dims);
