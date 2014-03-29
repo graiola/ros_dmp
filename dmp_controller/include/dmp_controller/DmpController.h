@@ -33,10 +33,8 @@
  * \brief This class provides a general interface for dmp controllers.
 */
 
-//using namespace DmpBbo;
-
 typedef DmpBbo::Dmp dmp_t;
-//typedef KDLKinematics kinematics_t;
+typedef kdl_kinematics::KDLKinematics kinematics_t;
 
 namespace dmp_controller {
 
@@ -56,10 +54,6 @@ namespace dmp_controller {
 				cartesian_dmp_controller_ = cartesian_dmp_controller;
 				closed_loop_dmp_controller_ = closed_loop_dmp_controller;
 				
-				// Create the kinematics
-				if(cartesian_dmp_controller_)// FIX, hardcoded
-					//kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right");
-				
 				// Assign the sample time
 				assert(dt > 0.0);
 				dt_ = dt;
@@ -76,12 +70,27 @@ namespace dmp_controller {
 				dmp_state_command_.resize(dmp_state_size_);
 				dmp_state_command_dot_.resize(dmp_state_size_);
 				
-				if (cartesian_dmp_controller_){
+				// Create the kinematics
+				if (cartesian_dmp_controller_)// FIX, hardcoded
+				{
 					// Retrain a kdl robot
+					kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right");
+					if(!kinematics_->isParsed()){
+						ROS_ERROR("Problem with kdl_kinematics"); // FIX, handle it with try catch, implement a throw inside kdl_kinematics
+						return false;
+					}
 					
+					// Check if dmp has xyz rpy
+					assert(dmp_shr_ptr_->dim_orig() == 6); // FIX, hardcoded, I should implement a kind of mask...
+					cart_size_ = dmp_shr_ptr_->dim_orig();
 					
-					//joints_size_ = 7;
-					//assert(joints_size_ == dmp_shr_ptr_->dim_orig());
+					// Resize the IK attributes
+					v_.resize(cart_size_);
+					//gain_.resize(cart_size_,cart_size_); // FIX
+					// Assign the gains
+					gain_ = 100;
+					
+					joints_size_ = kinematics_->getNdof();
 				}
 				else
 					joints_size_ = dmp_shr_ptr_->dim_orig();
@@ -111,9 +120,8 @@ namespace dmp_controller {
 				status(); // Update joints_status_ and joints_status_dot_
 		
 				// Dmp's magic
-				if (cartesian_dmp_controller_){
-					//CrtDmpIntegrate(joints_status_,joints_status_dot_,joints_command_,joints_command_dot_);
-				}
+				if (cartesian_dmp_controller_)
+					CrtDmpIntegrate();
 				else
 					JntDmpIntegrate();
 				
@@ -132,7 +140,10 @@ namespace dmp_controller {
 			/** Number of joints controlled. */
 			int joints_size_;
 			
-			/** Dmp's state size, can be equal to the number of joints. */
+			/** Number of dof controlled in the cartesian space. */
+			int cart_size_;
+			
+			/** Dmp's state size, can be equal to the number of joints or to the number of cartesian dof. */
 			int dmp_state_size_;
 			
 			/** Define if it's a cartesian dmp controller or not. */
@@ -145,7 +156,7 @@ namespace dmp_controller {
 			boost::shared_ptr<dmp_t> dmp_shr_ptr_;
 			
 			/** Kinematics. */
-			//boost::shared_ptr<kinematics_t> kinematics_;
+			boost::shared_ptr<kinematics_t> kinematics_;
 			
 			/** Thread. */
 			//boost::thread thread_;
@@ -161,6 +172,10 @@ namespace dmp_controller {
 			Eigen::VectorXd dmp_state_status_dot_;
 			Eigen::VectorXd dmp_state_command_;
 			Eigen::VectorXd dmp_state_command_dot_;
+			/** IK attributes */
+			Eigen::VectorXd v_;
+			//Eigen::MatrixXd gain_; // FIX
+			double gain_;
 			
 			/** Read the joint positions. */
 			virtual void status() = 0;
@@ -181,7 +196,7 @@ namespace dmp_controller {
 				dmp_state_status_ =  dmp_state_command_;
 		
 				joints_command_ = dmp_state_command_.segment(0,joints_size_); // Pos
-				joints_command_dot_ = dmp_state_command_.segment(joints_size_,joints_size_); // Vel;
+				joints_command_dot_ = dmp_state_command_.segment(joints_size_,joints_size_); // Vel
 			}
 			
 			/** Integrate dmp in cartesian space. */
@@ -190,7 +205,18 @@ namespace dmp_controller {
 				
 				
 				
+				kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
 				
+				dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
+				
+				v_ = gain_*(dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)) + dmp_state_command_.segment(cart_size_,cart_size_);
+				
+				kinematics_->ComputeIk(joints_status_,v_,joints_command_dot_);
+				
+				// Update the gating system state
+				dmp_state_status_ =  dmp_state_command_;
+				
+				joints_command_ = dt_ * joints_command_dot_ +  joints_status_; // Pos computed with euler integration
 				
 			}
 			

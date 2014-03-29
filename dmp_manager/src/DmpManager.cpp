@@ -33,14 +33,17 @@ Trajectory generateViapointTrajectory(const VectorXd& ts, const VectorXd& y_firs
     return  Trajectory::generatePolynomialTrajectoryThroughViapoint(ts,y_first,y_yd_ydd_viapoint,viapoint_time,y_last);
 }
 
-dmp_t* generateDemoDmpJoints(const double dt, const int Ndof, const double Ti, const double Tf, int& n_time_steps_trajectory){
+dmp_t* generateDemoDmp(const VectorXd y_init, const VectorXd y_attr, const double dt, const int Ndof, const double Ti, const double Tf, int& n_time_steps_trajectory){
 
+	assert(y_init.size() == Ndof);
+	assert(y_attr.size() == Ndof);
+	
 	// GENERATE A TRAJECTORY
 	n_time_steps_trajectory = (int)((Tf-Ti)/dt) + 1;
-
+	
 	// Some default values for dynamical system
-	VectorXd y_init = VectorXd::Zero(Ndof);
-	VectorXd y_attr  = VectorXd::Ones(Ndof) * 0.4;
+	//VectorXd y_init = VectorXd::Zero(Ndof);
+	//VectorXd y_attr  = VectorXd::Ones(Ndof) * 0.4;
 	
 	VectorXd ts = VectorXd::LinSpaced(n_time_steps_trajectory,Ti,Tf); // From Ti to Tf in n_time_steps_trajectory steps
 	
@@ -98,12 +101,25 @@ int main(int argc, char *argv[])
 	double Tf = 6; //sec
 	double Ti = 0.0;
 	double dt = 0.025;
-	int Ndof = 7;
 	int n_time_steps_trajectory;
-	//Dmp* dmp_ptr = ;
-	boost::shared_ptr<dmp_t> dmp_shr_ptr(generateDemoDmpJoints(dt,Ndof,Ti,Tf,n_time_steps_trajectory));
+	int Ndof;
+	bool cart_dmp = true;
+	VectorXd y_attr;
+	if(cart_dmp){
+		Ndof = 6;
+		y_attr.resize(Ndof);
+		y_attr << 0.2, -0.1, -0.5, 0.0, 0.0, 0.0; // Cart
+	}
+	else{
+		Ndof = 7;
+		y_attr  = VectorXd::Ones(Ndof) * 0.4; // Joints
+	}
 	
-	if(controller->init(dt,dmp_shr_ptr)){
+	VectorXd y_init = VectorXd::Zero(Ndof);
+	
+	boost::shared_ptr<dmp_t> dmp_shr_ptr(generateDemoDmp(y_init,y_attr,dt,Ndof,Ti,Tf,n_time_steps_trajectory));
+	
+	if(controller->init(dt,dmp_shr_ptr,cart_dmp)){
 		controller->start();
 		while (!stop_node){ // Wait for the kill signal
 			usleep(200);
