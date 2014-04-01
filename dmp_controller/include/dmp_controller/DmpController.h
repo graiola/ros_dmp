@@ -7,6 +7,11 @@
 #ifndef DMP_CONTROLLER_H
 #define DMP_CONTROLLER_H
 
+////////// ROS
+#include <sensor_msgs/JointState.h>
+#include <geometry_msgs/PoseArray.h>
+#include <realtime_tools/realtime_publisher.h>
+
 ////////// KDL_KINEMATICS
 #include <kdl_kinematics/kdl_kinematics.h>
 
@@ -34,7 +39,9 @@
 */
 
 typedef DmpBbo::Dmp dmp_t;
-typedef kdl_kinematics::KDLKinematics kinematics_t;
+typedef kdl_kinematics::KDLKinematics kinematics_t; 
+typedef realtime_tools::RealtimePublisher<sensor_msgs::JointState> rt_joints_publisher_t;
+typedef realtime_tools::RealtimePublisher<geometry_msgs::PoseArray> rt_cart_publisher_t;
 
 namespace dmp_controller {
 
@@ -50,6 +57,10 @@ namespace dmp_controller {
 			/** Initialization function, it works as constructor. */
 			virtual bool init(double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false)
 			{
+				
+				//HACK
+				ros::NodeHandle ros_nh;	
+				
 				// Is it a cartesian dmp controller, closed loop?
 				cartesian_dmp_controller_ = cartesian_dmp_controller;
 				closed_loop_dmp_controller_ = closed_loop_dmp_controller;
@@ -95,9 +106,24 @@ namespace dmp_controller {
 					gain_ = 100;
 					
 					joints_size_ = kinematics_->getNdof();
+					
+					/*cart_publisher_shr_ptr_.reset(new rt_cart_publisher_t(ros_nh,"cart_states_dmp",10));
+					// Real time publisher initialization
+					for(int i = 0; i < cart_size_; i++){
+					//std::string str = std::to_string(i);
+						cart_publisher_shr_ptr_->msg_.header.frame_id
+						joints_publisher_shr_ptr_->msg_.position.push_back(0.0);
+						joints_publisher_shr_ptr_->msg_.velocity.push_back(0.0);
+					}*/
+					
+					
 				}
 				else
 					joints_size_ = dmp_shr_ptr_->dim_orig();
+				
+				// Initialize the real time publishers
+				jointsPublisherInit(joints_status_pub_shr_ptr_,"joints_status_dmp", ros_nh);	
+				jointsPublisherInit(joints_cmd_pub_shr_ptr_,"joints_cmd_dmp", ros_nh);
 					
 				// Resize the joints vectors
 				joints_status_.resize(joints_size_);
@@ -162,6 +188,11 @@ namespace dmp_controller {
 			/** Kinematics. */
 			boost::shared_ptr<kinematics_t> kinematics_;
 			
+			/** Real time publishers. */
+			boost::shared_ptr<rt_joints_publisher_t > joints_status_pub_shr_ptr_;
+			boost::shared_ptr<rt_joints_publisher_t > joints_cmd_pub_shr_ptr_;
+			boost::shared_ptr<rt_cart_publisher_t > cart_publisher_shr_ptr_;
+			
 			/** Thread. */
 			//boost::thread thread_;
 			
@@ -187,6 +218,43 @@ namespace dmp_controller {
 			/** Write the joint positions. */
 			virtual void command() = 0;
 			
+			/** Initialize the real time publisher. */
+			void jointsPublisherInit(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr,std::string topic_name, ros::NodeHandle& ros_nh)
+			{	assert(joints_size_ > 0);
+				pub_ptr.reset(new rt_joints_publisher_t(ros_nh,topic_name,10));
+				for(int i = 0; i < joints_size_; i++){
+					pub_ptr->msg_.name.push_back("joint_"+std::to_string(i));
+					pub_ptr->msg_.position.push_back(0.0);
+					//pub_ptr->msg_.velocity.push_back(0.0);
+				}
+			}
+			
+			/** Publish the joints position. */
+			inline void publishJoints(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr, Eigen::Ref<Eigen::VectorXd> joints_pos)
+			{
+				if(pub_ptr && pub_ptr->trylock())
+				{
+					pub_ptr->msg_.header.stamp = ros::Time::now();
+					for(int i = 0; i < joints_size_; i++)
+					{
+						pub_ptr->msg_.position[i] = joints_pos[i];
+						//pub_ptr->msg_.velocity[i] = joints_vel[i];
+					}
+					pub_ptr->unlockAndPublish();
+				}
+			}	
+			/** Publish the cartesian position and the velocity. */
+			/*inline void publishCart(boost::shared_ptr<rt_cart_publisher_t > pub_ptr, Eigen::Ref<Eigen::VectorXd> cart_pos)
+			{
+				if(pub_ptr->trylock())
+				{
+					pub_ptr->msg_.header.stamp = ros::Time::now();
+					for(int i = 0; i < cart_size_; i++)
+						pub_ptr->msg_.poses[i] = cart_pos[i];
+					pub_ptr->unlockAndPublish();
+				}	
+			}*/
+			
 			/** Integrate dmp in joints space. */
 			inline void JntDmpIntegrate()
 			{
@@ -194,7 +262,7 @@ namespace dmp_controller {
 					dmp_state_status_.segment(0,joints_size_) = joints_status_; // Pos
 					dmp_state_status_.segment(joints_size_,joints_size_) = joints_status_dot_; // Vel
 				}
-		
+				
 				dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
 				// Update the gating system state
 				dmp_state_status_ =  dmp_state_command_;

@@ -86,6 +86,7 @@ namespace meka_controller{
 		monitor_->stepStatus(joints_status_);
 		PRINT_DEBUG(1,"joints_status_\n",joints_status_);
 		PRINT_DEBUG(1,"dmp_state_status_\n",dmp_state_status_);
+		//publishJoints(joints_status_pub_shr_ptr_,joints_status_);
 	}
 	
 	void MekaController::command()
@@ -93,6 +94,7 @@ namespace meka_controller{
 		PRINT_DEBUG(1,"dmp_state_command_\n",dmp_state_command_);
 		monitor_->stepCommand(joints_command_);
 		PRINT_DEBUG(1,"joints_command_\n",joints_command_);
+		//publishJoints(joints_cmd_pub_shr_ptr_,joints_command_);
 	}
 	
 	void MekaController::start()
