@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	double dt = 0.025;
 	int n_time_steps_trajectory;
 	int Ndof;
-	bool cart_dmp = false;
+	bool cart_dmp = true;
 	VectorXd y_attr;
 	if(cart_dmp){
 		Ndof = 6;
