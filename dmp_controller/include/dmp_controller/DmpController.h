@@ -55,11 +55,10 @@ namespace dmp_controller {
 			virtual ~DmpController(){};
 			
 			/** Initialization function, it works as constructor. */
-			virtual bool init(double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false)
+			virtual bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false)
 			{
-				
-				//HACK
-				ros::NodeHandle ros_nh;	
+				// Take the ros node handle for this controller
+				ros_nh_ = ros_nh;	
 				
 				// Is it a cartesian dmp controller, closed loop?
 				cartesian_dmp_controller_ = cartesian_dmp_controller;
@@ -107,29 +106,21 @@ namespace dmp_controller {
 					
 					joints_size_ = kinematics_->getNdof();
 					
-					/*cart_publisher_shr_ptr_.reset(new rt_cart_publisher_t(ros_nh,"cart_states_dmp",10));
-					// Real time publisher initialization
-					for(int i = 0; i < cart_size_; i++){
-					//std::string str = std::to_string(i);
-						cart_publisher_shr_ptr_->msg_.header.frame_id
-						joints_publisher_shr_ptr_->msg_.position.push_back(0.0);
-						joints_publisher_shr_ptr_->msg_.velocity.push_back(0.0);
-					}*/
-					
-					
 				}
 				else
 					joints_size_ = dmp_shr_ptr_->dim_orig();
 				
 				// Initialize the real time publishers
-				jointsPublisherInit(joints_status_pub_shr_ptr_,"joints_status_dmp", ros_nh);	
-				jointsPublisherInit(joints_cmd_pub_shr_ptr_,"joints_cmd_dmp", ros_nh);
+				jointsPublisherInit(joints_status_pub_shr_ptr_,"joints_status_dmp", ros_nh_);	
+				jointsPublisherInit(joints_cmd_pub_shr_ptr_,"joints_cmd_dmp", ros_nh_);
+				jointsPublisherInit(joints_error_pub_shr_ptr_,"joints_err_dmp", ros_nh_);
 					
 				// Resize the joints vectors
 				joints_status_.resize(joints_size_);
 				joints_status_dot_.resize(joints_size_);
 				joints_command_.resize(joints_size_);
 				joints_command_dot_.resize(joints_size_);
+				joints_error_.resize(joints_size_);
 				
 				// Prepare the state vectors to be integrated by dmp
 				dmp_shr_ptr_->integrateStart(dmp_state_status_,dmp_state_status_dot_);
@@ -149,7 +140,7 @@ namespace dmp_controller {
 				// Read the joints state
 				status(); // Update joints_status_ and joints_status_dot_
 		
-				// Dmp's magic
+				// Integrate dmp
 				if (cartesian_dmp_controller_)
 					CrtDmpIntegrate();
 				else
@@ -163,6 +154,9 @@ namespace dmp_controller {
 			virtual void stop() = 0;
 			
 		protected:
+			
+			/** Ros node handle. */
+			ros::NodeHandle ros_nh_;
 			
 			/** Sample time. */
 			double dt_;
@@ -191,6 +185,7 @@ namespace dmp_controller {
 			/** Real time publishers. */
 			boost::shared_ptr<rt_joints_publisher_t > joints_status_pub_shr_ptr_;
 			boost::shared_ptr<rt_joints_publisher_t > joints_cmd_pub_shr_ptr_;
+			boost::shared_ptr<rt_joints_publisher_t > joints_error_pub_shr_ptr_;
 			boost::shared_ptr<rt_cart_publisher_t > cart_publisher_shr_ptr_;
 			
 			/** Thread. */
@@ -202,6 +197,7 @@ namespace dmp_controller {
 			Eigen::VectorXd joints_status_dot_;
 			Eigen::VectorXd joints_command_;
 			Eigen::VectorXd joints_command_dot_;
+			Eigen::VectorXd joints_error_;
 			/** Dmp state vectors. */
 			Eigen::VectorXd dmp_state_status_;
 			Eigen::VectorXd dmp_state_status_dot_;
@@ -212,11 +208,32 @@ namespace dmp_controller {
 			//Eigen::MatrixXd gain_; // FIX
 			double gain_;
 			
-			/** Read the joint positions. */
-			virtual void status() = 0;
+			/** Get the the joints status. */
+			inline void status()
+			{
+				readJointsStatus();
+				PRINT_DEBUG(1,"joints_status_\n",joints_status_);
+				PRINT_DEBUG(1,"dmp_state_status_\n",dmp_state_status_);
+				// Compute the error on the joints using the previous commands
+				joints_error_ = joints_command_ - joints_status_;
+				publishJoints(joints_status_pub_shr_ptr_,joints_status_);
+				publishJoints(joints_error_pub_shr_ptr_,joints_error_);
+			}
 			
-			/** Write the joint positions. */
-			virtual void command() = 0;
+			/** Send the joints commands. */
+			inline void command()
+			{
+				writeJointsCommands();
+				PRINT_DEBUG(1,"dmp_state_command_\n",dmp_state_command_);
+				PRINT_DEBUG(1,"joints_command_\n",joints_command_);
+				publishJoints(joints_cmd_pub_shr_ptr_,joints_command_);
+			}
+			
+			/** Read from motors (robot dependent). */
+			virtual void readJointsStatus() = 0;
+			
+			/** Write to motors (robot dependent). */
+			virtual void writeJointsCommands() = 0;
 			
 			/** Initialize the real time publisher. */
 			void jointsPublisherInit(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr,std::string topic_name, ros::NodeHandle& ros_nh)
@@ -264,6 +281,7 @@ namespace dmp_controller {
 				}
 				
 				dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
+				
 				// Update the gating system state
 				dmp_state_status_ =  dmp_state_command_;
 		

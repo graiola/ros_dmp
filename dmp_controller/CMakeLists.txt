@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS pluginlib kdl_kinematics geometry_msgs sensor_msgs realtime_tools)
+find_package(catkin REQUIRED COMPONENTS roscpp pluginlib kdl_kinematics geometry_msgs sensor_msgs realtime_tools)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system thread)
@@ -88,7 +88,7 @@ find_package(orocos_kdl REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   #LIBRARIES dmp_controller
-  CATKIN_DEPENDS pluginlib kdl_kinematics geometry_msgs sensor_msgs realtime_tools
+  CATKIN_DEPENDS roscpp pluginlib kdl_kinematics geometry_msgs sensor_msgs realtime_tools
   DEPENDS system_lib boost orocos_kdl
 )
 

@@ -50,7 +50,7 @@ namespace meka_controller {
 			virtual ~MekaController();
 			
 			/** Initialization function, it works as constructor. */
-			bool init(double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false);
+			bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false);
 			
 			/** Start the controller. */
 			void start();
@@ -62,11 +62,11 @@ namespace meka_controller {
 			void stop();
 			
 		protected:
-			/** Read the joint positions. */
-			void status();
+			/** Read from motors (robot dependent). */
+			void readJointsStatus();
 			
-			/** Write the joint positions. */
-			void command();
+			/** Write to motors (robot dependent). */
+			void writeJointsCommands();
 			
 			/** Initialize the real time task using rtai api. */
 			bool rtTaskInit();

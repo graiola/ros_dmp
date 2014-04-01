@@ -12,9 +12,9 @@ namespace meka_controller{
 		delete monitor_;
 	}
 	
-	bool MekaController::init(double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller, bool closed_loop_dmp_controller)
+	bool MekaController::init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller, bool closed_loop_dmp_controller)
 	{	
-		if(dmp_controller::DmpController::init(dt,dmp_shr_ptr,cartesian_dmp_controller,closed_loop_dmp_controller))
+		if(dmp_controller::DmpController::init(ros_nh,dt,dmp_shr_ptr,cartesian_dmp_controller,closed_loop_dmp_controller))
 		{
 			monitor_ = new MekaShmMonitor(joints_size_);
 			return true;
@@ -62,7 +62,7 @@ namespace meka_controller{
 	}
 
 	void MekaController::updateLoop()
-	{	dt_ = dt_ * DT_FACTOR;
+	{
 		INIT_CNT(tmp_dt_cnt);
 		INIT_CNT(tmp_loop_cnt);
 		if(rtTaskInit()){
@@ -81,20 +81,14 @@ namespace meka_controller{
 		}
 	}
 	
-	void MekaController::status()
+	void MekaController::readJointsStatus()
 	{
-		monitor_->stepStatus(joints_status_);
-		PRINT_DEBUG(1,"joints_status_\n",joints_status_);
-		PRINT_DEBUG(1,"dmp_state_status_\n",dmp_state_status_);
-		//publishJoints(joints_status_pub_shr_ptr_,joints_status_);
+		monitor_->stepStatus(joints_status_);	
 	}
 	
-	void MekaController::command()
+	void MekaController::writeJointsCommands()
 	{
-		PRINT_DEBUG(1,"dmp_state_command_\n",dmp_state_command_);
 		monitor_->stepCommand(joints_command_);
-		PRINT_DEBUG(1,"joints_command_\n",joints_command_);
-		//publishJoints(joints_cmd_pub_shr_ptr_,joints_command_);
 	}
 	
 	void MekaController::start()

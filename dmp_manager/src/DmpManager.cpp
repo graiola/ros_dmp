@@ -75,8 +75,6 @@ dmp_t* generateDemoDmp(const VectorXd y_init, const VectorXd y_attr, const doubl
 
 int main(int argc, char *argv[])
 {
-	//ros::init(argc, argv, "dmp_manager");
-	
 	signal(SIGINT, shutdown);
 	
 	ros::init(argc, argv, "dmp_manager",ros::init_options::NoSigintHandler);
@@ -117,15 +115,16 @@ int main(int argc, char *argv[])
 	
 	VectorXd y_init = VectorXd::Zero(Ndof);
 	
+	ros::NodeHandle controller_nh("meka_controller");
+	
 	boost::shared_ptr<dmp_t> dmp_shr_ptr(generateDemoDmp(y_init,y_attr,dt,Ndof,Ti,Tf,n_time_steps_trajectory));
 	
-	if(controller->init(dt,dmp_shr_ptr,cart_dmp)){
+	if(controller->init(controller_nh,dt,dmp_shr_ptr,cart_dmp)){
 		controller->start();
 		while (!stop_node){ // Wait for the kill signal
 			usleep(200);
 		}	
 	}
-	
 	
 	// End of the world
 	controller->stop();
