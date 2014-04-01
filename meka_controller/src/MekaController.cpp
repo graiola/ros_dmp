@@ -84,15 +84,15 @@ namespace meka_controller{
 	void MekaController::status()
 	{
 		monitor_->stepStatus(joints_status_);
-		PRINT_DEBUG("joints_status_\n",joints_status_);
-		PRINT_DEBUG("dmp_state_status_\n",dmp_state_status_);
+		PRINT_DEBUG(1,"joints_status_\n",joints_status_);
+		PRINT_DEBUG(1,"dmp_state_status_\n",dmp_state_status_);
 	}
 	
 	void MekaController::command()
 	{
-		PRINT_DEBUG("dmp_state_command_\n",dmp_state_command_);
+		PRINT_DEBUG(1,"dmp_state_command_\n",dmp_state_command_);
 		monitor_->stepCommand(joints_command_);
-		PRINT_DEBUG("joints_command_\n",joints_command_);
+		PRINT_DEBUG(1,"joints_command_\n",joints_command_);
 	}
 	
 	void MekaController::start()

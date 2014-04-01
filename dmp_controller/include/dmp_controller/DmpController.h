@@ -26,7 +26,7 @@
 #else
 #define DEBUG_LV 0
 #endif
-#define PRINT_DEBUG(string,in) do { if (DEBUG_LV) std::cout<<string<<in<<std::endl; } while (0)
+#define PRINT_DEBUG(lv,string,in) do { if (DEBUG_LV == lv) std::cout<<string<<in<<std::endl; } while (0)
 
 
 /** 
@@ -74,9 +74,13 @@ namespace dmp_controller {
 				if (cartesian_dmp_controller_)// FIX, hardcoded
 				{
 					// Retrain a kdl robot
-					kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right");
-					if(!kinematics_->isParsed()){
-						ROS_ERROR("Problem with kdl_kinematics"); // FIX, handle it with try catch, implement a throw inside kdl_kinematics
+					try
+					{
+						kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right"); // Fix hardcoded names
+					}
+					catch(const std::runtime_error& e)
+					{
+						std::cout << e.what() << std::endl;
 						return false;
 					}
 					
@@ -202,14 +206,18 @@ namespace dmp_controller {
 			/** Integrate dmp in cartesian space. */
 			inline void CrtDmpIntegrate()
 			{
+				if(closed_loop_dmp_controller_)
+				{
+					kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
+					dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
+				}
+				else
+				{
+					dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
+					kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
+				}
 				
-				
-				
-				kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
-				
-				dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
-				
-				v_ = gain_*(dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)) + dmp_state_command_.segment(cart_size_,cart_size_);
+				v_ = gain_*(dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)) + dmp_state_command_.segment(cart_size_,cart_size_); // The ik is always working in closed loop
 				
 				kinematics_->ComputeIk(joints_status_,v_,joints_command_dot_);
 				
@@ -217,7 +225,6 @@ namespace dmp_controller {
 				dmp_state_status_ =  dmp_state_command_;
 				
 				joints_command_ = dt_ * joints_command_dot_ +  joints_status_; // Pos computed with euler integration
-				
 			}
 			
 			
