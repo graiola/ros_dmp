@@ -23,7 +23,11 @@
 ////////// ROS_DMP
 #include <dmp_controller/DmpController.h>
 
+////////// YAML
+#include <yaml-cpp/yaml.h>
+
 ////////// STD
+#include <fstream>
 #include <signal.h> 
 
 sig_atomic_t stop_node = 0;

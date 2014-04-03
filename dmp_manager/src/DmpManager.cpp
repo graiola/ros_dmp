@@ -15,6 +15,36 @@
 using namespace DmpBbo;
 using namespace Eigen;
 
+std::string controller_name;
+bool closed_loop, cart_dmp;
+double damp_max, det_max, epsilon;
+
+bool readConfig(std::string file_path)
+{
+	YAML::Node main_node;
+	std::ifstream file(file_path.c_str());
+	if(file.fail())
+		return false;
+	YAML::Parser parser(file);
+	parser.GetNextDocument(main_node);
+	file.close();
+	
+	main_node["controller"] >> controller_name;
+	
+	const YAML::Node& dmp_node = main_node["dmp"];
+	dmp_node["closed_loop"] >> closed_loop;
+	dmp_node["cartesian"] >> cart_dmp;
+
+	const YAML::Node& ik_node = main_node["ik"];
+	ik_node["damp_max"] >> damp_max;
+	ik_node["det_max"] >> det_max;
+	ik_node["epsilon"] >> epsilon;
+	
+	//double damp_max = 0.1, double det_max = 0.0, double epsilon = 0.01
+	
+	return true;
+}
+
 Trajectory generateViapointTrajectory(const VectorXd& ts, const VectorXd& y_first, const VectorXd& y_last, const double& Tf, const double& Ti)
 {
     //VectorXd y_first = VectorXd::Zero(n_dims);
@@ -94,6 +124,12 @@ int main(int argc, char *argv[])
 		ROS_ERROR("The plugin failed to load for some reason. Error: %s", ex.what());
 		return 0;
 	}
+	
+	std::string file_path("/home/meka/catkin_workspace/src/ros_dmp/dmp_manager/config/config.yaml");
+	if(readConfig(file_path))
+		ROS_INFO("Loaded config file: %s",file_path.c_str());
+	else
+		ROS_ERROR("Can not load config file: %s",file_path.c_str());
 
 	// Dmp
 	double Tf = 6; //sec
@@ -101,7 +137,8 @@ int main(int argc, char *argv[])
 	double dt = 0.025;
 	int n_time_steps_trajectory;
 	int Ndof;
-	bool cart_dmp = true;
+	//bool cart_dmp = true;
+	//bool closed_loop = true;
 	VectorXd y_attr;
 	if(cart_dmp){
 		Ndof = 6;
@@ -119,7 +156,7 @@ int main(int argc, char *argv[])
 	
 	boost::shared_ptr<dmp_t> dmp_shr_ptr(generateDemoDmp(y_init,y_attr,dt,Ndof,Ti,Tf,n_time_steps_trajectory));
 	
-	if(controller->init(controller_nh,dt,dmp_shr_ptr,cart_dmp)){
+	if(controller->init(controller_nh,dt,dmp_shr_ptr,cart_dmp,closed_loop)){
 		controller->start();
 		while (!stop_node){ // Wait for the kill signal
 			usleep(200);

@@ -15,8 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-find_package(Boost COMPONENTS filesystem system serialization REQUIRED)
-
+find_package(Boost COMPONENTS filesystem system serialization REQUIRED) 
+#find_package(yaml-cpp REQUIRED)
 SET(DMP_LIBS dmp dynamicalsystems functionapproximators)
 
 
@@ -89,7 +89,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES dmp_manager
   CATKIN_DEPENDS roscpp pluginlib dmp_controller
-  DEPENDS system_lib boost
+  DEPENDS system_lib boost yaml-cpp
 )
 
 ###########
@@ -97,7 +97,7 @@ catkin_package(
 ###########
 
 ## Specify additional locations of header files
-## Your package locations should be listed before other locations
+## Your package locations should be listed before other locations  
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 
 ## Declare a cpp library
@@ -113,7 +113,7 @@ add_executable(dmp_manager_node include/${PROJECT_NAME}/DmpManager.h src/DmpMana
 # add_dependencies(dmp_manager_node dmp_manager_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(dmp_manager_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${DMP_LIBS})
+target_link_libraries(dmp_manager_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} yaml-cpp ${DMP_LIBS})
 
 #############
 ## Install ##
