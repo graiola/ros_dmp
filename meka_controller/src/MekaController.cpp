@@ -4,7 +4,6 @@ namespace meka_controller{
 	
 	MekaController::MekaController()
 	{
-	
 	}
 	
 	MekaController::~MekaController()
@@ -12,9 +11,9 @@ namespace meka_controller{
 		delete monitor_;
 	}
 	
-	bool MekaController::init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller, bool closed_loop_dmp_controller)
+	bool MekaController::init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, kinematics_t* kin_ptr, bool closed_loop_dmp_controller)
 	{	
-		if(dmp_controller::DmpController::init(ros_nh,dt,dmp_shr_ptr,cartesian_dmp_controller,closed_loop_dmp_controller))
+		if(dmp_controller::DmpController::init(ros_nh,dt,dmp_shr_ptr,kin_ptr,closed_loop_dmp_controller))
 		{
 			monitor_ = new MekaShmMonitor(joints_size_);
 			return true;

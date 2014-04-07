@@ -50,7 +50,7 @@ namespace meka_controller {
 			virtual ~MekaController();
 			
 			/** Initialization function, it works as constructor. */
-			bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false);
+			bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, kinematics_t* kin_ptr = nullptr, bool closed_loop_dmp_controller = false);
 			
 			/** Start the controller. */
 			void start();

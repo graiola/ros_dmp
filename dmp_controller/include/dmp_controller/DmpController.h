@@ -12,8 +12,9 @@
 #include <geometry_msgs/PoseArray.h>
 #include <realtime_tools/realtime_publisher.h>
 
-////////// KDL_KINEMATICS
-#include <kdl_kinematics/kdl_kinematics.h>
+////////// KINEMATICS
+//#include <kdl_kinematics/kdl_kinematics.h>
+#include <dmp_manager/Kinematics.h>
 
 ////////// BOOST
 #include <boost/shared_ptr.hpp>
@@ -26,6 +27,7 @@
 #include <eigen3/Eigen/Core>
 
 ////////// Debug
+//#define DEBUG
 #ifdef DEBUG
 #define DEBUG_LV 1
 #else
@@ -39,7 +41,7 @@
 */
 
 typedef DmpBbo::Dmp dmp_t;
-typedef kdl_kinematics::KDLKinematics kinematics_t; 
+typedef kinematics::Kinematics kinematics_t; 
 typedef realtime_tools::RealtimePublisher<sensor_msgs::JointState> rt_joints_publisher_t;
 typedef realtime_tools::RealtimePublisher<geometry_msgs::PoseArray> rt_cart_publisher_t;
 
@@ -49,25 +51,34 @@ namespace dmp_controller {
 	{	
 		public:
 			/** Constructor. */
-			DmpController(){}; //Note: this needs to be an empty constructor for the ros plugin creation
+			DmpController():kin_ptr_(nullptr),closed_loop_dmp_controller_(false){}; //Note: this needs to be an empty constructor for the ros plugin creation
 			
 			/** Destructor. */
 			virtual ~DmpController(){};
 			
 			/** Initialization function, it works as constructor. */
-			virtual bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, bool cartesian_dmp_controller = false, bool closed_loop_dmp_controller = false)
+			virtual bool init(ros::NodeHandle& ros_nh, double dt, boost::shared_ptr<dmp_t> dmp_shr_ptr, kinematics_t* kin_ptr, bool closed_loop_dmp_controller)
 			{
 				// Take the ros node handle for this controller
 				ros_nh_ = ros_nh;	
 				
 				// Is it a cartesian dmp controller, closed loop?
-				cartesian_dmp_controller_ = cartesian_dmp_controller;
+				if(kin_ptr)
+				{
+					kin_ptr_ = kin_ptr;
+					cartesian_dmp_controller_ = true;
+				}
+				else
+					cartesian_dmp_controller_ = false;
 				closed_loop_dmp_controller_ = closed_loop_dmp_controller;
 				
 				// Assign the sample time
 				assert(dt > 0.0);
 				dt_ = dt;
 				
+				// DMP checks
+				assert(dmp_shr_ptr->dim_orig() > 0);
+				assert(dmp_shr_ptr->dim() > 0);
 				// Check if the dmp is trained
 				//if(!dmp_shr_ptr.isTrained())
 				//	return false;
@@ -80,32 +91,25 @@ namespace dmp_controller {
 				dmp_state_command_.resize(dmp_state_size_);
 				dmp_state_command_dot_.resize(dmp_state_size_);
 				
+				dmp_state_status_.fill(0.0);
+				dmp_state_status_dot_.fill(0.0);
+				dmp_state_command_.fill(0.0);
+				dmp_state_command_dot_.fill(0.0);
+				
+				
 				// Create the kinematics
-				if (cartesian_dmp_controller_)// FIX, hardcoded
+				if (cartesian_dmp_controller_)
 				{
-					// Retrain a kdl robot
-					try
-					{
-						kinematics_ = boost::make_shared<kinematics_t> ("T0","palm_right"); // Fix hardcoded names
-					}
-					catch(const std::runtime_error& e)
-					{
-						std::cout << e.what() << std::endl;
-						return false;
-					}
-					
-					// Check if dmp has xyz rpy
-					assert(dmp_shr_ptr_->dim_orig() == 6); // FIX, hardcoded, I should implement a kind of mask...
 					cart_size_ = dmp_shr_ptr_->dim_orig();
 					
-					// Resize the IK attributes
+					// Resize the cart velocity
 					v_.resize(cart_size_);
-					//gain_.resize(cart_size_,cart_size_); // FIX
-					// Assign the gains
-					gain_ = 100;
+					v_.fill(0.0);
 					
-					joints_size_ = kinematics_->getNdof();
+					// Get the gains
+					gains_ = kin_ptr_->getGains();
 					
+					joints_size_ = kin_ptr_->getNdof();
 				}
 				else
 					joints_size_ = dmp_shr_ptr_->dim_orig();
@@ -121,6 +125,14 @@ namespace dmp_controller {
 				joints_command_.resize(joints_size_);
 				joints_command_dot_.resize(joints_size_);
 				joints_error_.resize(joints_size_);
+				joints_status_int_.resize(joints_size_);
+				
+				joints_status_.fill(0.0);
+				joints_status_dot_.fill(0.0);
+				joints_command_.fill(0.0);
+				joints_command_dot_.fill(0.0);
+				joints_error_.fill(0.0);
+				joints_status_int_.fill(0.0);
 				
 				// Prepare the state vectors to be integrated by dmp
 				dmp_shr_ptr_->integrateStart(dmp_state_status_,dmp_state_status_dot_);
@@ -180,7 +192,8 @@ namespace dmp_controller {
 			boost::shared_ptr<dmp_t> dmp_shr_ptr_;
 			
 			/** Kinematics. */
-			boost::shared_ptr<kinematics_t> kinematics_;
+			//boost::shared_ptr<kinematics_t> kin_shr_ptr_;
+			kinematics_t* kin_ptr_;
 			
 			/** Real time publishers. */
 			boost::shared_ptr<rt_joints_publisher_t > joints_status_pub_shr_ptr_;
@@ -198,6 +211,7 @@ namespace dmp_controller {
 			Eigen::VectorXd joints_command_;
 			Eigen::VectorXd joints_command_dot_;
 			Eigen::VectorXd joints_error_;
+			Eigen::VectorXd joints_status_int_;
 			/** Dmp state vectors. */
 			Eigen::VectorXd dmp_state_status_;
 			Eigen::VectorXd dmp_state_status_dot_;
@@ -205,8 +219,7 @@ namespace dmp_controller {
 			Eigen::VectorXd dmp_state_command_dot_;
 			/** IK attributes */
 			Eigen::VectorXd v_;
-			//Eigen::MatrixXd gain_; // FIX
-			double gain_;
+			Eigen::MatrixXd gains_;
 			
 			/** Get the the joints status. */
 			inline void status()
@@ -216,7 +229,7 @@ namespace dmp_controller {
 				PRINT_DEBUG(1,"dmp_state_status_\n",dmp_state_status_);
 				// Compute the error on the joints using the previous commands
 				joints_error_ = joints_command_ - joints_status_;
-				publishJoints(joints_status_pub_shr_ptr_,joints_status_);
+				publishJoints(joints_status_pub_shr_ptr_,joints_status_,joints_status_dot_);
 				publishJoints(joints_error_pub_shr_ptr_,joints_error_);
 			}
 			
@@ -226,7 +239,7 @@ namespace dmp_controller {
 				writeJointsCommands();
 				PRINT_DEBUG(1,"dmp_state_command_\n",dmp_state_command_);
 				PRINT_DEBUG(1,"joints_command_\n",joints_command_);
-				publishJoints(joints_cmd_pub_shr_ptr_,joints_command_);
+				publishJoints(joints_cmd_pub_shr_ptr_,joints_command_,joints_command_dot_);
 			}
 			
 			/** Read from motors (robot dependent). */
@@ -242,12 +255,13 @@ namespace dmp_controller {
 				for(int i = 0; i < joints_size_; i++){
 					pub_ptr->msg_.name.push_back("joint_"+std::to_string(i));
 					pub_ptr->msg_.position.push_back(0.0);
-					//pub_ptr->msg_.velocity.push_back(0.0);
+					pub_ptr->msg_.velocity.push_back(0.0);
+					pub_ptr->msg_.effort.push_back(0.0);
 				}
 			}
 			
 			/** Publish the joints position. */
-			inline void publishJoints(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr, Eigen::Ref<Eigen::VectorXd> joints_pos)
+			inline void publishJoints(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr, const Eigen::Ref<const Eigen::VectorXd>& joints_pos)
 			{
 				if(pub_ptr && pub_ptr->trylock())
 				{
@@ -255,7 +269,20 @@ namespace dmp_controller {
 					for(int i = 0; i < joints_size_; i++)
 					{
 						pub_ptr->msg_.position[i] = joints_pos[i];
-						//pub_ptr->msg_.velocity[i] = joints_vel[i];
+					}
+					pub_ptr->unlockAndPublish();
+				}
+			}
+			/** Publish the joints position and velocity. */
+			inline void publishJoints(boost::shared_ptr<rt_joints_publisher_t >& pub_ptr, const Eigen::Ref<const Eigen::VectorXd>& joints_pos, const Eigen::Ref<const Eigen::VectorXd>& joints_vel)
+			{
+				if(pub_ptr && pub_ptr->trylock())
+				{
+					pub_ptr->msg_.header.stamp = ros::Time::now();
+					for(int i = 0; i < joints_size_; i++)
+					{
+						pub_ptr->msg_.position[i] = joints_pos[i];
+						pub_ptr->msg_.velocity[i] = joints_vel[i];
 					}
 					pub_ptr->unlockAndPublish();
 				}
@@ -294,18 +321,24 @@ namespace dmp_controller {
 			{
 				if(closed_loop_dmp_controller_)
 				{
-					kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
+					kin_ptr_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
 					dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
 				}
 				else
 				{
+					
 					dmp_shr_ptr_->integrateStep(dt_,dmp_state_status_,dmp_state_command_,dmp_state_command_dot_);
-					kinematics_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
+					kin_ptr_->ComputeFk(joints_status_,dmp_state_status_.segment(0,cart_size_));//FIX, xyz rpy
 				}
 				
-				v_ = gain_*(dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)) + dmp_state_command_.segment(cart_size_,cart_size_); // The ik is always working in closed loop
+				v_ = gains_*(dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)) + dmp_state_command_.segment(cart_size_,cart_size_); // The ik is always working in closed loop
 				
-				kinematics_->ComputeIk(joints_status_,v_,joints_command_dot_);
+				//PRINT_DEBUG(1,"v_\n",v_);
+				
+				kin_ptr_->ComputeIk(joints_status_,v_,joints_command_dot_);
+				
+				PRINT_DEBUG(1,"joints_command_dot_\n",joints_command_dot_);
+				PRINT_DEBUG(1,"dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_)\n",dmp_state_command_.segment(0,cart_size_) - dmp_state_status_.segment(0,cart_size_));
 				
 				// Update the gating system state
 				dmp_state_status_ =  dmp_state_command_;

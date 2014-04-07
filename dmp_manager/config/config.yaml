@@ -1,0 +1,15 @@
+controller: ok
+ik:
+  damp_max: 0.5
+  epsilon: 0.1
+  mask: 1,1,1,1,1,1
+dmp:
+  closed_loop: false
+  cartesian: true
+  ik_gain:
+    x: 10
+    y: 10
+    z: 10
+    roll: 10
+    pitch: 10
+    yaw: 10

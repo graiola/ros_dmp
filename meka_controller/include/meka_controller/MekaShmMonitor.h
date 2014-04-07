@@ -38,8 +38,8 @@ static long long start_loop_time, end_loop_time, elapsed_loop_time;
 #define SAVE_TIME(out) do { if (TIME_ACTIVE) getCpuCount((out)); } while (0)
 #define PRINT_TIME(T_start,T_end,cnt,string) do { if (TIME_ACTIVE) if ((cnt)%100==0) ROS_INFO("%s: %fs",string,count2Sec(((T_end) - (T_start)))); cnt = cnt++ & INT_MAX;} while (0)
 
-using namespace Eigen;
-using namespace std;
+//using namespace Eigen;
+//using namespace std;
 
 void getCpuCount(long long& out){
 	out = nano2count(rt_get_cpu_time_ns());
@@ -101,7 +101,7 @@ class MekaShmMonitor
 				return false;
 		}
 		
-		inline void stepCommand(VectorXd& joints_cmd)
+		inline void stepCommand(Eigen::VectorXd& joints_cmd)
 		{	
 			assert(joints_cmd.size() >= Ndof_);
 			setTimestamp(getTimestamp()); //Pass back timestamp as a heartbeat
@@ -119,7 +119,7 @@ class MekaShmMonitor
 			rt_sem_signal(command_sem_);
 		}
 
-		inline void stepStatus(VectorXd& joints_status)
+		inline void stepStatus(Eigen::VectorXd& joints_status)
 		{	
 			assert(joints_status.size() >= Ndof_);
 			// Lock the semaphore and copy the input data

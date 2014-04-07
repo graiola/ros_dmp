@@ -106,7 +106,7 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 # )
 
 ## Declare a cpp executable
-add_executable(dmp_manager_node include/${PROJECT_NAME}/DmpManager.h src/DmpManager.cpp)
+add_executable(dmp_manager_node include/${PROJECT_NAME}/DmpManager.h include/${PROJECT_NAME}/Kinematics.h src/DmpManager.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -137,11 +137,11 @@ install(TARGETS dmp_manager_node
 )
 
 ## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(DIRECTORY include/${PROJECT_NAME}/
+   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+   FILES_MATCHING PATTERN "Kinematics.h"
+   PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES

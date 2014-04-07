@@ -1,4 +1,5 @@
 #include "dmp_manager/DmpManager.h"
+#include "dmp_manager/Kinematics.h"
 
 //using namespace dmp_controller;
 
@@ -15,9 +16,11 @@
 using namespace DmpBbo;
 using namespace Eigen;
 
-std::string controller_name;
+std::string controller_name, mask;
 bool closed_loop, cart_dmp;
-double damp_max, det_max, epsilon;
+double damp_max, epsilon;
+std::vector<double> gains_vector(6);
+MatrixXd ik_gain;
 
 bool readConfig(std::string file_path)
 {
@@ -34,13 +37,24 @@ bool readConfig(std::string file_path)
 	const YAML::Node& dmp_node = main_node["dmp"];
 	dmp_node["closed_loop"] >> closed_loop;
 	dmp_node["cartesian"] >> cart_dmp;
+	
+	const YAML::Node& dmp_ik_node = dmp_node["ik_gain"];
+	dmp_ik_node["x"] >> gains_vector[0];
+	dmp_ik_node["y"] >> gains_vector[1];
+	dmp_ik_node["z"] >> gains_vector[2];
+	dmp_ik_node["roll"] >> gains_vector[3];
+	dmp_ik_node["pitch"] >> gains_vector[4];
+	dmp_ik_node["yaw"] >> gains_vector[5];
+	// Create the Eigen gain matrix
+	//ik_gain.resize(6,6);
+	ik_gain = MatrixXd::Zero(6,6);
+	for(int i = 0; i<6; i++)
+		ik_gain(i,i) = gains_vector[i];
 
 	const YAML::Node& ik_node = main_node["ik"];
 	ik_node["damp_max"] >> damp_max;
-	ik_node["det_max"] >> det_max;
 	ik_node["epsilon"] >> epsilon;
-	
-	//double damp_max = 0.1, double det_max = 0.0, double epsilon = 0.01
+	ik_node["mask"] >> mask;
 	
 	return true;
 }
@@ -143,7 +157,7 @@ int main(int argc, char *argv[])
 	if(cart_dmp){
 		Ndof = 6;
 		y_attr.resize(Ndof);
-		y_attr << 0.2, -0.1, -0.5, 0.0, 0.0, 0.0; // Cart
+		y_attr << 0.24, -0.1, -0.53, 0.0, 0.0, 0.0; // Cart
 	}
 	else{
 		Ndof = 7;
@@ -154,9 +168,27 @@ int main(int argc, char *argv[])
 	
 	ros::NodeHandle controller_nh("meka_controller");
 	
+	// Generate and train a DMP
 	boost::shared_ptr<dmp_t> dmp_shr_ptr(generateDemoDmp(y_init,y_attr,dt,Ndof,Ti,Tf,n_time_steps_trajectory));
 	
-	if(controller->init(controller_nh,dt,dmp_shr_ptr,cart_dmp,closed_loop)){
+	// Retrain a kdl robot
+	kinematics_t* kin_ptr = nullptr;
+	if(cart_dmp)
+	{
+		try
+		{
+			kin_ptr = new kinematics_t("T0","palm_right",damp_max,epsilon,ik_gain); // Fix hardcoded names
+			kin_ptr->setMask(mask); // FIX, now should be called ALWAYS before the dmp_controller initialization!
+		}
+		catch(const std::runtime_error& e)
+		{
+			std::cout << e.what() << std::endl;
+			return 0;
+		}
+	}
+	
+	if(controller->init(controller_nh,dt,dmp_shr_ptr,kin_ptr,closed_loop)){
+		//controller->gain_ = ik_gain; // HACK
 		controller->start();
 		while (!stop_node){ // Wait for the kill signal
 			usleep(200);
@@ -165,6 +197,7 @@ int main(int argc, char *argv[])
 	
 	// End of the world
 	controller->stop();
+	delete kin_ptr;
 	ros::shutdown();
 	return 0;
 }
